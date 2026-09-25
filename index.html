@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mancate Vendite</title>
+<style>
+  :root{
+    --bg:#f4f5f7;
+    --card-bg:#ffffff;
+    --text:#1a1d23;
+    --text-muted:#6b7280;
+    --border:#e2e4e9;
+    --accent:#c8102e;
+    --accent-dark:#a30d24;
+    --accent-soft:#fdeceb;
+    --success:#1a8754;
+    --success-soft:#e8f6ee;
+    --radius:12px;
+    box-sizing:border-box;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#15171b; --card-bg:#1f2126; --text:#f2f3f5; --text-muted:#9aa0aa;
+      --border:#2c2f36; --accent:#ff5a63; --accent-dark:#ff7a82;
+      --accent-soft:#3a1f22; --success:#3ddc84; --success-soft:#123625;
+    }
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{ max-width:720px; margin:0 auto; padding:20px 16px 40px; }
+  header.top{
+    position:sticky; top:0; background:var(--bg);
+    padding:12px 16px 10px; margin:0 -16px 8px; z-index:10;
+    border-bottom:1px solid var(--border);
+  }
+  h1{ font-size:20px; margin:0 0 2px; letter-spacing:-0.01em; }
+  .sub{ color:var(--text-muted); font-size:13px; margin:0; }
+  .status-dot{ display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:5px; background:#c8a600; }
+  .status-dot.ok{ background:var(--success); }
+  .status-dot.err{ background:var(--accent); }
+  .tabs{ display:flex; gap:6px; margin-top:14px; background:var(--card-bg); border:1px solid var(--border); border-radius:10px; padding:4px; }
+  .tab{ flex:1; text-align:center; padding:9px 8px; border-radius:8px; font-size:14px; font-weight:600; color:var(--text-muted); cursor:pointer; user-select:none; transition:.15s; border:none; background:transparent; font-family:inherit; }
+  .tab.active{ background:var(--accent); color:#fff; }
+  .tab .count{ opacity:.85; font-weight:500; }
+  section{ margin-top:18px; }
+  .card{ background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); padding:16px; }
+  .card + .card{ margin-top:12px; }
+  label{ display:block; font-size:12.5px; font-weight:600; color:var(--text-muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:.03em; }
+  input[type=text]{ width:100%; padding:11px 12px; border-radius:9px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:15px; font-family:inherit; }
+  input[type=text]:focus{ outline:2px solid var(--accent); outline-offset:-1px; }
+  .row{ display:flex; gap:10px; }
+  .row > div{ flex:1; }
+  .field{ margin-bottom:12px; }
+  .field:last-child{ margin-bottom:0; }
+  button.primary{ width:100%; background:var(--accent); color:#fff; border:none; padding:12px; border-radius:9px; font-size:15px; font-weight:700; cursor:pointer; margin-top:4px; }
+  button.primary:active{ background:var(--accent-dark); }
+  button.primary:disabled{ opacity:.5; cursor:not-allowed; }
+  .item{ background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); padding:14px; display:flex; gap:12px; align-items:flex-start; }
+  .item + .item{ margin-top:10px; }
+  .check{ width:24px; height:24px; border-radius:7px; border:2px solid var(--border); flex-shrink:0; margin-top:2px; cursor:pointer; background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:15px; color:transparent; transition:.15s; }
+  .check:active{ transform:scale(.92); }
+  .item.archived .check{ background:var(--success); border-color:var(--success); color:#fff; }
+  .item-body{ flex:1; min-width:0; }
+  .item-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .precod{ display:inline-block; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; font-weight:700; background:var(--border); color:var(--text-muted); padding:2px 7px; border-radius:6px 0 0 6px; margin-bottom:5px; margin-right:-4px; }
+  .codice{ display:inline-block; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; font-weight:700; background:var(--accent-soft); color:var(--accent); padding:2px 7px; border-radius:6px; margin-bottom:5px; }
+  .codice.with-precod{ border-radius:0 6px 6px 0; }
+  .descr{ font-size:15px; font-weight:600; line-height:1.35; word-break:break-word; }
+  .meta{ font-size:12.5px; color:var(--text-muted); margin-top:5px; }
+  .item.archived .descr, .item.archived .meta, .item.archived .codice{ opacity:.65; }
+  .select-check{ flex-shrink:0; width:22px; height:22px; border-radius:6px; border:2px solid var(--border); cursor:pointer; background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:13px; color:transparent; transition:.15s; }
+  .select-check.checked{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .select-check:active{ transform:scale(.92); }
+  .empty{ text-align:center; color:var(--text-muted); font-size:14px; padding:36px 10px; }
+  .delete-link{ display:block; text-align:center; font-size:12px; color:var(--text-muted); margin-top:14px; text-decoration:underline; cursor:pointer; }
+  .email-box textarea{ width:100%; min-height:150px; border-radius:9px; border:1px solid var(--border); background:var(--bg); color:var(--text); padding:10px; font-size:13.5px; font-family:inherit; line-height:1.5; resize:vertical; }
+  .email-actions{ display:flex; gap:8px; margin-top:8px; }
+  .email-actions button{ flex:1; padding:9px; border-radius:8px; border:1px solid var(--border); background:var(--card-bg); color:var(--text); font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit; }
+  .email-actions button.copy-ok{ background:var(--success-soft); border-color:var(--success); color:var(--success); }
+  .status-msg{ text-align:center; color:var(--text-muted); font-size:13px; padding:20px; }
+  .toast{ position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--text); color:var(--bg); padding:10px 18px; border-radius:20px; font-size:13.5px; font-weight:600; opacity:0; pointer-events:none; transition:opacity .2s; z-index:50; max-width:90%; text-align:center; }
+  .toast.show{ opacity:1; }
+  .email-bar{ position:fixed; left:0; right:0; bottom:0; background:var(--card-bg); border-top:1px solid var(--border); padding:12px 16px; box-shadow:0 -6px 16px rgba(0,0,0,.1); z-index:40; max-width:720px; margin:0 auto; }
+  .email-bar-inner{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .email-bar-inner span{ font-size:13.5px; font-weight:600; color:var(--text-muted); }
+  .email-bar-actions{ display:flex; gap:8px; }
+  .email-bar-actions button{ padding:9px 14px; border-radius:8px; font-size:13.5px; font-weight:700; cursor:pointer; font-family:inherit; border:none; }
+  .email-bar-actions .gen{ background:var(--accent); color:#fff; }
+  .email-bar-actions .clear{ background:transparent; color:var(--text-muted); border:1px solid var(--border); }
+  .email-bar .email-box{ margin-top:10px; }
+  .email-bar-close{ text-align:center; font-size:12px; color:var(--text-muted); text-decoration:underline; cursor:pointer; margin-top:8px; }
+  body.bar-open .wrap{ padding-bottom:120px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>📋 Mancate Vendite</h1>
+    <p class="sub"><span class="status-dot" id="statusDot"></span><span id="statusText">Connessione in corso…</span></p>
+    <div class="tabs">
+      <button class="tab active" data-tab="attive" id="tabAttive">Attive <span class="count" id="countAttive"></span></button>
+      <button class="tab" data-tab="archivio" id="tabArchivio">Archivio <span class="count" id="countArchivio"></span></button>
+    </div>
+  </header>
+
+  <section id="viewAttive">
+    <div class="card">
+      <div class="field">
+        <label for="opInput">Operatore</label>
+        <input type="text" id="opInput" placeholder="Il tuo nome">
+      </div>
+      <div class="row">
+        <div class="field" style="flex:0 0 110px;">
+          <label for="precodInput">Pre-codice ditta</label>
+          <input type="text" id="precodInput" placeholder="Es. RI">
+        </div>
+        <div class="field">
+          <label for="codInput">Codice articolo (opzionale)</label>
+          <input type="text" id="codInput" placeholder="Es. 20136500">
+        </div>
+      </div>
+      <div class="field">
+        <label for="descInput">Descrizione articolo (opzionale se hai pre-codice + codice)</label>
+        <input type="text" id="descInput" placeholder="Es. Valvola miscelatrice 3 vie">
+      </div>
+      <button class="primary" id="addBtn">+ Aggiungi mancata vendita</button>
+    </div>
+    <div id="listAttive" style="margin-top:16px;"></div>
+  </section>
+
+  <section id="viewArchivio" style="display:none;">
+    <div id="listArchivio"></div>
+  </section>
+</div>
+
+<div class="email-bar" id="emailBar" style="display:none;">
+  <div class="email-bar-inner" id="emailBarRow">
+    <span id="emailBarCount"></span>
+    <div class="email-bar-actions">
+      <button class="gen" id="emailBarGenBtn">Genera email</button>
+      <button class="clear" id="emailBarClearBtn">Annulla</button>
+    </div>
+  </div>
+  <div class="email-box" id="emailBarBox" style="display:none;">
+    <textarea id="emailBarTextarea"></textarea>
+    <div class="email-actions">
+      <button id="emailBarCopyBtn">Copia testo</button>
+      <button id="emailBarMailBtn">Apri email</button>
+    </div>
+    <div class="email-bar-close" id="emailBarCloseBtn">Chiudi e torna alla selezione</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {
+  getFirestore, collection, addDoc, updateDoc, deleteDoc, doc,
+  onSnapshot, query, orderBy, limit
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+// =====================================================================
+// CONFIGURAZIONE FIREBASE — sostituisci con i valori del TUO progetto
+// (Console Firebase > Impostazioni progetto > Le tue app > Config).
+// Questi valori NON sono segreti: è normale che siano visibili nel
+// codice di un'app web Firebase. La sicurezza reale è nelle Regole
+// di Firestore (firestore.rules), non in questa configurazione.
+// =====================================================================
+const firebaseConfig = {
+  apiKey: "INSERISCI_API_KEY",
+  authDomain: "INSERISCI_PROGETTO.firebaseapp.com",
+  projectId: "INSERISCI_PROGETTO",
+  storageBucket: "INSERISCI_PROGETTO.appspot.com",
+  messagingSenderId: "INSERISCI_SENDER_ID",
+  appId: "INSERISCI_APP_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+(function(){
+  var LS_OP_KEY = 'mv_operatore';
+  var state = { items: [], ready: false, selected: {} };
+  var tab = 'attive';
+
+  var els = {
+    tabAttive: document.getElementById('tabAttive'),
+    tabArchivio: document.getElementById('tabArchivio'),
+    viewAttive: document.getElementById('viewAttive'),
+    viewArchivio: document.getElementById('viewArchivio'),
+    listAttive: document.getElementById('listAttive'),
+    listArchivio: document.getElementById('listArchivio'),
+    countAttive: document.getElementById('countAttive'),
+    countArchivio: document.getElementById('countArchivio'),
+    opInput: document.getElementById('opInput'),
+    precodInput: document.getElementById('precodInput'),
+    codInput: document.getElementById('codInput'),
+    descInput: document.getElementById('descInput'),
+    addBtn: document.getElementById('addBtn'),
+    toast: document.getElementById('toast'),
+    statusDot: document.getElementById('statusDot'),
+    statusText: document.getElementById('statusText'),
+    emailBar: document.getElementById('emailBar'),
+    emailBarCount: document.getElementById('emailBarCount'),
+    emailBarGenBtn: document.getElementById('emailBarGenBtn'),
+    emailBarClearBtn: document.getElementById('emailBarClearBtn'),
+    emailBarBox: document.getElementById('emailBarBox'),
+    emailBarRow: document.getElementById('emailBarRow'),
+    emailBarTextarea: document.getElementById('emailBarTextarea'),
+    emailBarCopyBtn: document.getElementById('emailBarCopyBtn'),
+    emailBarMailBtn: document.getElementById('emailBarMailBtn'),
+    emailBarCloseBtn: document.getElementById('emailBarCloseBtn')
+  };
+
+  try{
+    var savedOp = localStorage.getItem(LS_OP_KEY);
+    if(savedOp) els.opInput.value = savedOp;
+  }catch(e){}
+  els.opInput.addEventListener('change', function(){
+    try{ localStorage.setItem(LS_OP_KEY, els.opInput.value.trim()); }catch(e){}
+  });
+
+  function setStatus(kind, text){
+    els.statusDot.className = 'status-dot' + (kind ? ' ' + kind : '');
+    els.statusText.textContent = text;
+  }
+
+  function showToast(msg){
+    els.toast.textContent = msg;
+    els.toast.classList.add('show');
+    setTimeout(function(){ els.toast.classList.remove('show'); }, 1800);
+  }
+
+  function escapeHtml(s){
+    return String(s||'').replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+  }
+
+  function switchTab(name){
+    tab = name;
+    els.tabAttive.classList.toggle('active', name==='attive');
+    els.tabArchivio.classList.toggle('active', name==='archivio');
+    els.viewAttive.style.display = name==='attive' ? '' : 'none';
+    els.viewArchivio.style.display = name==='archivio' ? '' : 'none';
+  }
+  els.tabAttive.addEventListener('click', function(){ switchTab('attive'); });
+  els.tabArchivio.addEventListener('click', function(){ switchTab('archivio'); });
+
+  function buildBulkEmailText(items){
+    var groups = {}; var order = [];
+    items.forEach(function(item){
+      var key = item.precodice || '—';
+      if(!groups[key]){ groups[key] = []; order.push(key); }
+      groups[key].push(item);
+    });
+    var multiGroup = order.length > 1;
+    var oggetto = multiGroup
+      ? 'Richiesta disponibilità articoli'
+      : 'Richiesta disponibilità articoli' + (order[0] && order[0] !== '—' ? ' ' + order[0] : '');
+    var righe = ['Oggetto: ' + oggetto, '', 'Buongiorno,', 'vorremmo verificare la disponibilità dei seguenti articoli:', ''];
+    order.forEach(function(key){
+      if(multiGroup){ righe.push('Ditta ' + key + ':'); }
+      groups[key].forEach(function(item){
+        righe.push('- Codice: ' + item.codice + ' — Descrizione: ' + (item.descrizione || ''));
+      });
+      righe.push('');
+    });
+    righe.push('Restiamo in attesa di un Vostro cortese riscontro.', '', 'Cordiali saluti');
+    return righe.join('\n');
+  }
+
+  function render(){
+    var attive = state.items.filter(function(i){ return i.stato !== 'archiviata'; })
+      .sort(function(a,b){ return (a.createdAt||0) - (b.createdAt||0); });
+    var archiviate = state.items.filter(function(i){ return i.stato === 'archiviata'; })
+      .sort(function(a,b){ return (b.archivedAt||0) - (a.archivedAt||0); });
+
+    els.countAttive.textContent = attive.length ? '(' + attive.length + ')' : '';
+    els.countArchivio.textContent = archiviate.length ? '(' + archiviate.length + ')' : '';
+
+    els.listAttive.innerHTML = attive.length ? '' : '<div class="empty">Nessuna mancata vendita attiva 🎉</div>';
+    attive.forEach(function(item){ els.listAttive.appendChild(renderItem(item, false)); });
+
+    els.listArchivio.innerHTML = archiviate.length ? '' : '<div class="empty">Archivio vuoto</div>';
+    archiviate.forEach(function(item){ els.listArchivio.appendChild(renderItem(item, true)); });
+  }
+
+  function renderItem(item, archived){
+    var wrap = document.createElement('div');
+    wrap.className = 'item' + (archived ? ' archived' : '');
+
+    var check = document.createElement('div');
+    check.className = 'check';
+    check.textContent = archived ? '✓' : '';
+    if(!archived){ check.addEventListener('click', function(){ archiveItem(item); }); }
+    wrap.appendChild(check);
+
+    var body = document.createElement('div');
+    body.className = 'item-body';
+
+    var top = document.createElement('div');
+    top.className = 'item-top';
+
+    var left = document.createElement('div');
+    left.style.minWidth = '0';
+    var htmlBits = '';
+    if(item.codice){
+      if(item.precodice){ htmlBits += '<span class="precod">' + escapeHtml(item.precodice) + '</span>'; }
+      htmlBits += '<span class="codice' + (item.precodice ? ' with-precod' : '') + '">' + escapeHtml(item.codice) + '</span><br>';
+    }
+    if(item.descrizione){ htmlBits += '<div class="descr">' + escapeHtml(item.descrizione) + '</div>'; }
+    htmlBits += '<div class="meta">' + escapeHtml(item.data||'') + (item.operatore ? ' · ' + escapeHtml(item.operatore) : '') + (archived && item.archivedAtLabel ? ' · archiviato ' + escapeHtml(item.archivedAtLabel) : '') + '</div>';
+    left.innerHTML = htmlBits;
+    top.appendChild(left);
+
+    if(item.codice && !archived){
+      var selChk = document.createElement('div');
+      var isSel = !!state.selected[item.id];
+      selChk.className = 'select-check' + (isSel ? ' checked' : '');
+      selChk.title = 'Seleziona per email';
+      selChk.textContent = isSel ? '✓' : '';
+      selChk.addEventListener('click', function(){ toggleSelect(item.id); });
+      top.appendChild(selChk);
+    }
+
+    body.appendChild(top);
+
+    if(archived){
+      var delLink = document.createElement('span');
+      delLink.className = 'delete-link';
+      delLink.textContent = 'Elimina definitivamente';
+      delLink.addEventListener('click', function(){ deleteItem(item); });
+      body.appendChild(delLink);
+    }
+
+    wrap.appendChild(body);
+    return wrap;
+  }
+
+  function toggleSelect(id){
+    if(state.selected[id]){ delete state.selected[id]; } else { state.selected[id] = true; }
+    updateEmailBar(); render();
+  }
+  function selectedActiveItems(){
+    return state.items.filter(function(i){ return i.stato !== 'archiviata' && state.selected[i.id]; });
+  }
+  function updateEmailBar(){
+    var n = Object.keys(state.selected).length;
+    if(n === 0){
+      els.emailBar.style.display = 'none';
+      els.emailBarBox.style.display = 'none';
+      document.body.classList.remove('bar-open');
+      return;
+    }
+    els.emailBar.style.display = '';
+    document.body.classList.add('bar-open');
+    els.emailBarCount.textContent = n + (n === 1 ? ' articolo selezionato' : ' articoli selezionati');
+  }
+  els.emailBarClearBtn.addEventListener('click', function(){ state.selected = {}; updateEmailBar(); render(); });
+  els.emailBarGenBtn.addEventListener('click', function(){
+    var items = selectedActiveItems();
+    if(!items.length){ return; }
+    els.emailBarTextarea.value = buildBulkEmailText(items);
+    els.emailBarBox.style.display = '';
+    els.emailBarRow.style.display = 'none';
+  });
+  els.emailBarCloseBtn.addEventListener('click', function(){
+    els.emailBarBox.style.display = 'none';
+    els.emailBarRow.style.display = '';
+  });
+  els.emailBarCopyBtn.addEventListener('click', function(){
+    var text = els.emailBarTextarea.value;
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(function(){
+        els.emailBarCopyBtn.textContent = '✓ Copiato';
+        els.emailBarCopyBtn.classList.add('copy-ok');
+        setTimeout(function(){ els.emailBarCopyBtn.textContent = 'Copia testo'; els.emailBarCopyBtn.classList.remove('copy-ok'); }, 1600);
+      }).catch(function(){ fallbackCopy(els.emailBarTextarea, els.emailBarCopyBtn); });
+    } else { fallbackCopy(els.emailBarTextarea, els.emailBarCopyBtn); }
+  });
+  els.emailBarMailBtn.addEventListener('click', function(){
+    var lines = els.emailBarTextarea.value.split('\n');
+    var subject = lines[0].replace(/^Oggetto:\s*/i, '');
+    var body = lines.slice(1).join('\n').replace(/^\n+/, '');
+    window.location.href = 'mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+  });
+  function fallbackCopy(ta, btn){
+    ta.select();
+    try{
+      document.execCommand('copy');
+      btn.textContent = '✓ Copiato';
+      setTimeout(function(){ btn.textContent = 'Copia testo'; }, 1600);
+    }catch(e){ showToast('Copia manualmente il testo'); }
+  }
+
+  function todayLabel(){ return new Date().toLocaleDateString('it-IT'); }
+
+  function addItem(){
+    var precodice = els.precodInput.value.trim();
+    var codice = els.codInput.value.trim();
+    var descrizione = els.descInput.value.trim();
+    var operatore = els.opInput.value.trim();
+    if(!descrizione && !(precodice && codice)){
+      showToast('Inserisci una descrizione, oppure pre-codice + codice');
+      els.descInput.focus();
+      return;
+    }
+    els.addBtn.disabled = true;
+    addDoc(collection(db, 'voci'), {
+      precodice: precodice || null,
+      codice: codice || null,
+      descrizione: descrizione || null,
+      data: todayLabel(),
+      operatore: operatore || null,
+      stato: 'attiva',
+      createdAt: Date.now()
+    }).then(function(){
+      els.codInput.value = '';
+      els.descInput.value = '';
+      els.descInput.focus();
+      showToast('Aggiunto');
+    }).catch(function(err){
+      showToast('Errore: ' + (err && err.code ? err.code : 'riprova'));
+    }).finally(function(){
+      els.addBtn.disabled = false;
+    });
+  }
+  els.addBtn.addEventListener('click', addItem);
+  els.descInput.addEventListener('keydown', function(e){ if(e.key === 'Enter') addItem(); });
+  els.codInput.addEventListener('keydown', function(e){ if(e.key === 'Enter') addItem(); });
+  els.precodInput.addEventListener('keydown', function(e){ if(e.key === 'Enter') addItem(); });
+
+  function archiveItem(item){
+    delete state.selected[item.id];
+    updateEmailBar();
+    updateDoc(doc(db, 'voci', item.id), {
+      stato: 'archiviata', archivedAt: Date.now(), archivedAtLabel: todayLabel()
+    }).catch(function(err){ showToast('Errore: ' + (err && err.code ? err.code : 'riprova')); });
+  }
+
+  function deleteItem(item){
+    if(!window.confirm('Eliminare definitivamente questo elemento dall\'archivio?')) return;
+    delete state.selected[item.id];
+    updateEmailBar();
+    deleteDoc(doc(db, 'voci', item.id)).catch(function(err){
+      showToast('Errore: ' + (err && err.code ? err.code : 'riprova'));
+    });
+  }
+
+  function initData(){
+    var q = query(collection(db, 'voci'), orderBy('createdAt', 'asc'), limit(500));
+    onSnapshot(q, function(snap){
+      var arr = [];
+      snap.forEach(function(d){
+        var data = d.data();
+        data.id = d.id;
+        arr.push(data);
+      });
+      state.items = arr;
+      state.ready = true;
+      setStatus('ok', 'Connesso — dati in tempo reale');
+      render();
+    }, function(err){
+      setStatus('err', 'Errore di connessione ai dati');
+      showToast('Errore dati: ' + err.code);
+    });
+  }
+
+  setStatus('', 'Connessione in corso…');
+  onAuthStateChanged(auth, function(user){
+    if(user){ initData(); }
+  });
+  signInAnonymously(auth).catch(function(err){
+    setStatus('err', 'Errore di autenticazione');
+    showToast('Errore login: ' + err.code);
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
