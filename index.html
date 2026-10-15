@@ -52,13 +52,18 @@
   .card{ background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); padding:16px; }
   .card + .card{ margin-top:12px; }
   label{ display:block; font-size:12.5px; font-weight:600; color:var(--text-muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:.03em; }
-  input[type=text]{ width:100%; padding:11px 12px; border-radius:9px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:15px; font-family:inherit; }
-  input[type=text]:focus{ outline:2px solid var(--accent); outline-offset:-1px; }
+  input[type=text], select{ width:100%; padding:11px 12px; border-radius:9px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:15px; font-family:inherit; }
+  input[type=text]:focus, select:focus{ outline:2px solid var(--accent); outline-offset:-1px; }
+  select{ appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:34px; }
+  select:invalid{ color:var(--text-muted); }
   .row{ display:flex; gap:10px; }
   .row > div{ flex:1; }
   .field{ margin-bottom:12px; }
   .field:last-child{ margin-bottom:0; }
   button.primary{ width:100%; background:var(--accent); color:#fff; border:none; padding:12px; border-radius:9px; font-size:15px; font-weight:700; cursor:pointer; margin-top:4px; }
+  .danger-link{ width:100%; background:transparent; color:var(--text-muted); border:1px solid var(--border); padding:10px; border-radius:9px; font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit; margin-bottom:12px; }
+  .danger-link:active{ background:var(--accent-soft); color:var(--accent); border-color:var(--accent); }
+  .danger-link:disabled{ opacity:.5; cursor:not-allowed; }
   button.primary:active{ background:var(--accent-dark); }
   button.primary:disabled{ opacity:.5; cursor:not-allowed; }
   .item{ background:var(--card-bg); border:1px solid var(--border); border-radius:var(--radius); padding:14px; display:flex; gap:12px; align-items:flex-start; }
@@ -115,7 +120,15 @@
     <div class="card">
       <div class="field">
         <label for="opInput">Operatore</label>
-        <input type="text" id="opInput" placeholder="Il tuo nome">
+        <select id="opInput">
+          <option value="" disabled selected>Seleziona operatore…</option>
+          <option value="FABRIZIO">FABRIZIO</option>
+          <option value="FRANCESCO">FRANCESCO</option>
+          <option value="ENRICO">ENRICO</option>
+          <option value="SALVATORE">SALVATORE</option>
+          <option value="ANTONINO">ANTONINO</option>
+          <option value="GASPARE">GASPARE</option>
+        </select>
       </div>
       <div class="row">
         <div class="field" style="flex:0 0 110px;">
@@ -137,6 +150,7 @@
   </section>
 
   <section id="viewArchivio" style="display:none;">
+    <button class="danger-link" id="deleteAllBtn" style="display:none;">🗑 Elimina tutto l'archivio</button>
     <div id="listArchivio"></div>
   </section>
 </div>
@@ -166,7 +180,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/fireba
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   getFirestore, collection, addDoc, updateDoc, deleteDoc, doc,
-  onSnapshot, query, orderBy, limit
+  onSnapshot, query, orderBy, limit, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 // =====================================================================
@@ -192,7 +206,7 @@ const db = getFirestore(app);
 
 (function(){
   var LS_OP_KEY = 'mv_operatore';
-  var state = { items: [], ready: false, selected: {} };
+  var state = { items: [], ready: false, selected: {}, archivedIds: [] };
   var tab = 'attive';
 
   var els = {
@@ -221,7 +235,8 @@ const db = getFirestore(app);
     emailBarTextarea: document.getElementById('emailBarTextarea'),
     emailBarCopyBtn: document.getElementById('emailBarCopyBtn'),
     emailBarMailBtn: document.getElementById('emailBarMailBtn'),
-    emailBarCloseBtn: document.getElementById('emailBarCloseBtn')
+    emailBarCloseBtn: document.getElementById('emailBarCloseBtn'),
+    deleteAllBtn: document.getElementById('deleteAllBtn')
   };
 
   try{
@@ -298,6 +313,9 @@ const db = getFirestore(app);
 
     els.listArchivio.innerHTML = archiviate.length ? '' : '<div class="empty">Archivio vuoto</div>';
     archiviate.forEach(function(item){ els.listArchivio.appendChild(renderItem(item, true)); });
+
+    els.deleteAllBtn.style.display = archiviate.length ? '' : 'none';
+    state.archivedIds = archiviate.map(function(i){ return i.id; });
   }
 
   function renderItem(item, archived){
@@ -482,6 +500,42 @@ const db = getFirestore(app);
       showToast('Errore: ' + (err && err.code ? err.code : 'riprova'));
     });
   }
+
+  function deleteAllArchived(){
+    var ids = state.archivedIds.slice();
+    if(!ids.length) return;
+    var conferma = window.confirm(
+      'Eliminare DEFINITIVAMENTE tutte le ' + ids.length + ' voci presenti nell\'archivio?\nQuesta azione non può essere annullata.'
+    );
+    if(!conferma) return;
+
+    els.deleteAllBtn.disabled = true;
+    els.deleteAllBtn.textContent = 'Eliminazione in corso…';
+
+    // Firestore ammette al massimo 500 operazioni per batch: divido in blocchi.
+    var CHUNK = 450;
+    var chunks = [];
+    for(var i = 0; i < ids.length; i += CHUNK){ chunks.push(ids.slice(i, i + CHUNK)); }
+
+    var sequenza = Promise.resolve();
+    chunks.forEach(function(chunk){
+      sequenza = sequenza.then(function(){
+        var batch = writeBatch(db);
+        chunk.forEach(function(id){ batch.delete(doc(db, 'voci', id)); });
+        return batch.commit();
+      });
+    });
+
+    sequenza.then(function(){
+      showToast('Archivio svuotato');
+    }).catch(function(err){
+      showToast('Errore: ' + (err && err.code ? err.code : 'riprova'));
+    }).finally(function(){
+      els.deleteAllBtn.disabled = false;
+      els.deleteAllBtn.textContent = "🗑 Elimina tutto l'archivio";
+    });
+  }
+  els.deleteAllBtn.addEventListener('click', deleteAllArchived);
 
   function initData(){
     var q = query(collection(db, 'voci'), orderBy('createdAt', 'asc'), limit(500));
